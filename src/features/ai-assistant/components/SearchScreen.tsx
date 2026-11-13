@@ -9,6 +9,7 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { GeminiVisionClient } from '../geminiClient';
 
@@ -29,18 +30,18 @@ export const SearchScreen: React.FC = () => {
       id: 'photo-1',
       uri: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=500',
       caption: 'Viaje a Roma',
-      description: 'Cena con mamá comiendo pizza en una terraza en Italia',
+      description: 'Cena con familia en una terraza en Italia',
     },
     {
       id: 'photo-2',
       uri: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500',
-      caption: 'Playa Tropical',
-      description: 'Atardecer soleado en la playa con arena blanca y palmeras',
+      caption: 'Costa Marina',
+      description: 'Playa al atardecer con olas y horizonte despejado',
     },
     {
       id: 'photo-3',
       uri: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500',
-      caption: 'Montañas y Lago',
+      caption: 'Cordillera y Lago',
       description: 'Paisaje de montaña con cielo despejado y agua cristalina',
     },
   ];
@@ -60,16 +61,16 @@ export const SearchScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Búsqueda Inteligente con IA</Text>
+        <Text style={styles.title}>Búsqueda Semántica</Text>
         <Text style={styles.subtitle}>
-          Encuentra fotos por descripciones naturales cuando no recuerdes el álbum
+          Encuentra fotos por descripción en lenguaje natural cuando no recuerdes el álbum
         </Text>
       </View>
 
       <View style={styles.searchBar}>
         <TextInput
           style={styles.input}
-          placeholder="Ej: 'pizza con mamá' o 'playa al atardecer'..."
+          placeholder="Ej: 'cena en terraza' o 'playa al atardecer'..."
           placeholderTextColor={theme.colors.textMuted}
           value={query}
           onChangeText={setQuery}
@@ -77,14 +78,14 @@ export const SearchScreen: React.FC = () => {
           returnKeyType="search"
         />
         <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
-          <Text style={styles.searchBtnText}>Buscar</Text>
+          <Feather name="search" size={16} color="#0B0C0E" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.resultsArea}>
         {hasSearched && results.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Feather name="info" size={24} color={theme.colors.textMuted} style={{ marginBottom: 8 }} />
             <Text style={styles.emptyText}>No se encontraron fotos para "{query}"</Text>
           </View>
         ) : (
@@ -97,7 +98,7 @@ export const SearchScreen: React.FC = () => {
                 <Image source={{ uri: item.uri }} style={styles.resultThumb} />
                 <View style={styles.resultMeta}>
                   <Text style={styles.resultCaption}>{item.caption}</Text>
-                  <Text style={styles.resultDesc}>✨ {item.description}</Text>
+                  <Text style={styles.resultDesc}>{item.description}</Text>
                 </View>
               </View>
             )}
@@ -119,15 +120,13 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...theme.typography.headline,
     color: theme.colors.textPrimary,
   },
   subtitle: {
-    fontSize: 13,
+    ...theme.typography.body,
     color: theme.colors.textSecondary,
     marginTop: 4,
-    lineHeight: 18,
   },
   searchBar: {
     flexDirection: 'row',
@@ -138,7 +137,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.sm,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 12,
     color: theme.colors.textPrimary,
@@ -147,16 +146,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   searchBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 18,
-    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  searchBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
   },
   resultsArea: {
     flex: 1,
@@ -164,22 +158,22 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: theme.spacing.lg,
-    gap: 14,
+    gap: 12,
     paddingBottom: theme.spacing.xl,
   },
   resultCard: {
     flexDirection: 'row',
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.sm,
     padding: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   resultThumb: {
-    width: 80,
-    height: 80,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: '#334155',
+    width: 72,
+    height: 72,
+    borderRadius: theme.borderRadius.xs,
+    backgroundColor: '#1E2024',
   },
   resultMeta: {
     flex: 1,
@@ -187,13 +181,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   resultCaption: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: theme.colors.textPrimary,
   },
   resultDesc: {
     fontSize: 12,
-    color: theme.colors.primaryLight,
+    color: theme.colors.textSecondary,
     marginTop: 4,
     lineHeight: 16,
   },
@@ -202,12 +196,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: theme.spacing.xl,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
   emptyText: {
     color: theme.colors.textSecondary,
-    fontSize: 15,
+    fontSize: 14,
   },
 });

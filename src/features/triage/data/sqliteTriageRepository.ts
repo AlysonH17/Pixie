@@ -22,6 +22,14 @@ export class SQLiteTriageRepository implements ITriageRepository {
     return rows.map(this.mapRowToAsset);
   }
 
+  async getUnclassifiedSavedAssets(limit: number = 50): Promise<Asset[]> {
+    const rows = await this.db.getAllAsync<any>(
+      'SELECT * FROM assets WHERE triage_status = "kept_unclassified" ORDER BY created_at DESC LIMIT ?;',
+      [limit]
+    );
+    return rows.map(this.mapRowToAsset);
+  }
+
   async saveAssets(assets: Asset[]): Promise<void> {
     for (const a of assets) {
       await this.db.runAsync(
@@ -71,6 +79,20 @@ export class SQLiteTriageRepository implements ITriageRepository {
       'DELETE FROM triage_history WHERE id IN (SELECT id FROM triage_history WHERE asset_id = ? ORDER BY timestamp DESC LIMIT 1);',
       [assetId]
     );
+  }
+
+  async countPendingNew(): Promise<number> {
+    const result = await this.db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM assets WHERE triage_status = "pending";'
+    );
+    return result?.count ?? 0;
+  }
+
+  async countUnclassifiedSaved(): Promise<number> {
+    const result = await this.db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM assets WHERE triage_status = "kept_unclassified";'
+    );
+    return result?.count ?? 0;
   }
 
   async getProcessedAssetIds(): Promise<Set<string>> {

@@ -1,4 +1,11 @@
-export type TriageStatus = 'pending' | 'kept' | 'discarded' | 'deleted';
+export type TriageStatus =
+  | 'pending'
+  | 'kept_unclassified'
+  | 'kept_classified'
+  | 'discarded'
+  | 'deleted';
+
+export type TriageMode = 'quick' | 'detailed';
 export type MediaType = 'image' | 'video';
 export type TagType = 'person' | 'category' | 'event' | 'custom';
 

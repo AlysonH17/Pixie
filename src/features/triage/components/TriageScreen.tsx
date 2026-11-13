@@ -8,27 +8,35 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
-import { Asset, AssetMetadata } from '../../../core/database/types';
+import { Asset, AssetMetadata, TriageMode } from '../../../core/database/types';
 import { TaggingModal } from './TaggingModal';
-import { parseMediaMetadata } from '../../metadata/exifParser';
+import { parseMediaMetadata, formatCaptureDate } from '../../metadata/exifParser';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface TriageScreenProps {
   initialAssets: Asset[];
-  onKeep: (assetId: string, tags: string[], albums: string[]) => void;
+  defaultMode?: TriageMode;
+  onQuickKeep: (assetId: string) => void;
+  onDetailedKeep: (assetId: string, tags: string[], albums: string[]) => void;
   onDiscard: (assetId: string) => void;
   onUndo?: () => void;
+  onClose: () => void;
 }
 
 export const TriageScreen: React.FC<TriageScreenProps> = ({
   initialAssets,
-  onKeep,
+  defaultMode = 'quick',
+  onQuickKeep,
+  onDetailedKeep,
   onDiscard,
   onUndo,
+  onClose,
 }) => {
   const [queue, setQueue] = useState<Asset[]>(initialAssets);
+  const [mode, setMode] = useState<TriageMode>(defaultMode);
   const [activeAsset, setActiveAsset] = useState<Asset | null>(
     initialAssets.length > 0 ? initialAssets[0] : null
   );
@@ -37,17 +45,16 @@ export const TriageScreen: React.FC<TriageScreenProps> = ({
   const [keptCount, setKeptCount] = useState(0);
   const [discardedCount, setDiscardedCount] = useState(0);
 
-  // Update active asset when queue changes
+  // Sync active asset when queue updates
   React.useEffect(() => {
     if (queue.length > 0) {
       const current = queue[0];
       setActiveAsset(current);
-      // Simulate EXIF parsing
       const parsed = parseMediaMetadata({
         id: current.id,
         uri: current.uri,
-        creationTime: Date.now() - 1000 * 60 * 60 * 24 * 30, // 30 days ago
-        location: { latitude: 41.9028, longitude: 12.4964 }, // Rome coordinates for demo
+        creationTime: Date.now() - 1000 * 60 * 60 * 24 * 14,
+        location: { latitude: 41.9028, longitude: 12.4964 },
       });
       setMetadata(parsed);
     } else {
@@ -65,12 +72,20 @@ export const TriageScreen: React.FC<TriageScreenProps> = ({
 
   const handleKeepPress = () => {
     if (!activeAsset) return;
-    setModalVisible(true);
+    if (mode === 'quick') {
+      // Fast mode: save immediately without opening modal
+      onQuickKeep(activeAsset.id);
+      setKeptCount((c) => c + 1);
+      setQueue((prev) => prev.slice(1));
+    } else {
+      // Detailed mode: open tagging modal
+      setModalVisible(true);
+    }
   };
 
-  const handleSaveClassification = (tags: string[], albums: string[]) => {
+  const handleSaveDetailed = (tags: string[], albums: string[]) => {
     if (!activeAsset) return;
-    onKeep(activeAsset.id, tags, albums);
+    onDetailedKeep(activeAsset.id, tags, albums);
     setKeptCount((c) => c + 1);
     setModalVisible(false);
     setQueue((prev) => prev.slice(1));
@@ -80,20 +95,30 @@ export const TriageScreen: React.FC<TriageScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>🎉</Text>
-          <Text style={styles.emptyTitle}>¡Todo al día!</Text>
-          <Text style={styles.emptySubtitle}>
-            No tienes más fotos pendientes por clasificar. Todas tus fotos nuevas
-            han sido procesadas.
-          </Text>
-          <View style={styles.summaryBox}>
-            <Text style={styles.summaryText}>
-              ✅ Conservadas y clasificadas: <Text style={styles.bold}>{keptCount}</Text>
-            </Text>
-            <Text style={styles.summaryText}>
-              🗑️ En cola de eliminación: <Text style={styles.bold}>{discardedCount}</Text>
-            </Text>
+          <View style={styles.emptyIconBadge}>
+            <Feather name="check" size={28} color={theme.colors.actionKeep} />
           </View>
+          <Text style={styles.emptyTitle}>Revisión completada</Text>
+          <Text style={styles.emptySubtitle}>
+            No quedan elementos pendientes en esta sesión. Tus fotos seleccionadas
+            fueron preservadas y las descartadas esperan en la papelera.
+          </Text>
+
+          <View style={styles.summaryBox}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Conservadas</Text>
+              <Text style={styles.summaryValue}>{keptCount}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>En papelera</Text>
+              <Text style={styles.summaryValue}>{discardedCount}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.returnButton} onPress={onClose}>
+            <Text style={styles.returnButtonText}>Volver al inicio</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -101,22 +126,77 @@ export const TriageScreen: React.FC<TriageScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Header & Counters */}
+      {/* Top Header */}
       <View style={styles.topBar}>
-        <View>
-          <Text style={styles.brandTitle}>Pixie Triage</Text>
-          <Text style={styles.counterText}>
-            Pendientes en cola: <Text style={styles.bold}>{queue.length}</Text>
-          </Text>
-        </View>
-        {onUndo && (
-          <TouchableOpacity style={styles.undoBtn} onPress={onUndo}>
-            <Text style={styles.undoText}>↩ Deshacer</Text>
+        <TouchableOpacity style={styles.iconButton} onPress={onClose}>
+          <Feather name="arrow-left" size={20} color={theme.colors.textPrimary} />
+        </TouchableOpacity>
+
+        {/* Mode Segmented Switch */}
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity
+            style={[styles.segment, mode === 'quick' && styles.segmentActive]}
+            onPress={() => setMode('quick')}
+          >
+            <Feather
+              name="zap"
+              size={12}
+              color={mode === 'quick' ? '#0B0C0E' : theme.colors.textSecondary}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={[
+                styles.segmentText,
+                mode === 'quick' && styles.segmentTextActive,
+              ]}
+            >
+              Rápido
+            </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.segment, mode === 'detailed' && styles.segmentActive]}
+            onPress={() => setMode('detailed')}
+          >
+            <Feather
+              name="sliders"
+              size={12}
+              color={mode === 'detailed' ? '#0B0C0E' : theme.colors.textSecondary}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={[
+                styles.segmentText,
+                mode === 'detailed' && styles.segmentTextActive,
+              ]}
+            >
+              Detallado
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {onUndo ? (
+          <TouchableOpacity style={styles.iconButton} onPress={onUndo}>
+            <Feather name="rotate-ccw" size={18} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
         )}
       </View>
 
-      {/* Main Card */}
+      {/* Queue Counter Header */}
+      <View style={styles.queueInfoRow}>
+        <Text style={styles.queueInfoText}>
+          Pendientes: <Text style={styles.queueInfoStrong}>{queue.length}</Text>
+        </Text>
+        <Text style={styles.modeHintText}>
+          {mode === 'quick'
+            ? 'Deslizar derecha guarda directo sin preguntar'
+            : 'Deslizar derecha despliega atributos'}
+        </Text>
+      </View>
+
+      {/* Central Visual Card */}
       <View style={styles.cardContainer}>
         <View style={styles.card}>
           <Image
@@ -124,50 +204,51 @@ export const TriageScreen: React.FC<TriageScreenProps> = ({
             style={styles.cardImage}
             resizeMode="cover"
           />
-          <View style={styles.cardFooter}>
-            <Text style={styles.cardDate}>
-              📅 {metadata?.locationCity ? `${metadata.locationCity} • ` : ''}
-              {activeAsset.mediaType === 'video' ? '🎥 Video' : '📸 Foto'}
-            </Text>
-            <Text style={styles.cardHint}>
-              ← Izquierda: Descartar | Derecha: Guardar →
-            </Text>
+          <View style={styles.cardMetaBar}>
+            <View>
+              <Text style={styles.cardDate}>
+                {formatCaptureDate(metadata?.capturedAt)}
+              </Text>
+              {metadata?.locationCity && (
+                <Text style={styles.cardLocation}>
+                  {metadata.locationCity}, {metadata.locationCountry}
+                </Text>
+              )}
+            </View>
+            <View style={styles.mediaTypePill}>
+              <Text style={styles.mediaTypeText}>
+                {activeAsset.mediaType === 'video' ? 'VIDEO' : 'FOTO'}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
-      {/* Bottom Swipe Triggers */}
+      {/* Action Buttons */}
       <View style={styles.controlsRow}>
         <TouchableOpacity
           style={[styles.actionBtn, styles.discardBtn]}
           onPress={handleDiscardPress}
-          accessibilityLabel="Descartar y enviar a papelera"
+          accessibilityLabel="Descartar foto"
         >
-          <Text style={styles.actionBtnText}>✕</Text>
-          <Text style={styles.actionBtnLabel}>Descartar</Text>
+          <Feather name="x" size={24} color={theme.colors.actionDiscard} />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.actionBtn, styles.keepBtn]}
           onPress={handleKeepPress}
-          accessibilityLabel="Conservar y asignar etiquetas"
+          accessibilityLabel="Guardar foto"
         >
-          <Text style={styles.actionBtnText}>♥</Text>
-          <Text style={styles.actionBtnLabel}>Guardar</Text>
+          <Feather name="check" size={24} color={theme.colors.actionKeep} />
         </TouchableOpacity>
       </View>
 
-      {/* Tagging Sheet Modal */}
+      {/* Tagging Modal for Detailed Mode */}
       <TaggingModal
         visible={modalVisible}
         asset={activeAsset}
         metadata={metadata}
-        aiSuggestion={{
-          category: 'Paisaje',
-          tags: ['Italia', 'Atardecer'],
-          album: 'Viaje a Italia 2024',
-        }}
-        onSave={handleSaveClassification}
+        onSave={handleSaveDetailed}
         onCancel={() => setModalVisible(false)}
       />
     </SafeAreaView>
@@ -184,33 +265,64 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
+    paddingTop: theme.spacing.xs,
+    paddingBottom: theme.spacing.sm,
   },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
-  counterText: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.full,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
-  bold: {
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  undoBtn: {
+  segment: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.borderRadius.full,
   },
-  undoText: {
-    color: theme.colors.textSecondary,
+  segmentActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  segmentText: {
     fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+  },
+  segmentTextActive: {
+    color: '#0B0C0E',
     fontWeight: '600',
+  },
+  queueInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xs,
+  },
+  queueInfoText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+  },
+  queueInfoStrong: {
+    color: theme.colors.textPrimary,
+    fontWeight: '600',
+  },
+  modeHintText: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
   },
   cardContainer: {
     flex: 1,
@@ -221,66 +333,70 @@ const styles = StyleSheet.create({
   card: {
     width: SCREEN_WIDTH - 32,
     height: '92%',
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.surface,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
   },
   cardImage: {
     width: '100%',
     flex: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#1A1C20',
   },
-  cardFooter: {
+  cardMetaBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderSubtle,
   },
   cardDate: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: theme.colors.textPrimary,
   },
-  cardHint: {
+  cardLocation: {
     fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  mediaTypePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.xs,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  mediaTypeText: {
+    ...theme.typography.labelSmall,
     color: theme.colors.textMuted,
-    marginTop: 4,
+    fontSize: 10,
   },
   controlsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    justifyContent: 'center',
+    gap: 40,
     alignItems: 'center',
     paddingVertical: theme.spacing.lg,
   },
   actionBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
   },
   discardBtn: {
-    backgroundColor: theme.colors.accentRed,
+    borderColor: theme.colors.actionDiscard,
+    backgroundColor: theme.colors.actionDiscardSubtle,
   },
   keepBtn: {
-    backgroundColor: theme.colors.accentGreen,
-  },
-  actionBtnText: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  actionBtnLabel: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    marginTop: 2,
+    borderColor: theme.colors.actionKeep,
+    backgroundColor: theme.colors.actionKeepSubtle,
   },
   emptyContainer: {
     flex: 1,
@@ -288,32 +404,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.xl,
   },
-  emptyEmoji: {
-    fontSize: 64,
+  emptyIconBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.colors.actionKeepSubtle,
+    borderWidth: 1,
+    borderColor: theme.colors.actionKeep,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+    ...theme.typography.title,
     color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: 15,
+    ...theme.typography.body,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
+    maxWidth: 320,
   },
   summaryBox: {
+    flexDirection: 'row',
     marginTop: theme.spacing.xl,
-    padding: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
     width: '100%',
-    gap: 8,
   },
-  summaryText: {
-    fontSize: 15,
+  summaryRow: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: theme.colors.border,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '700',
     color: theme.colors.textPrimary,
+  },
+  returnButton: {
+    marginTop: theme.spacing.xl,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: theme.borderRadius.sm,
+  },
+  returnButtonText: {
+    color: '#0B0C0E',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

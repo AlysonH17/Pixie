@@ -7,13 +7,14 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { theme } from './src/core/theme';
+import { DashboardScreen } from './src/features/dashboard/components/DashboardScreen';
 import { TriageScreen } from './src/features/triage/components/TriageScreen';
 import { LibraryScreen } from './src/features/albums/components/LibraryScreen';
 import { SearchScreen } from './src/features/ai-assistant/components/SearchScreen';
-import { Asset } from './src/core/database/types';
+import { Asset, TriageMode } from './src/core/database/types';
 
-// Sample batch for testing and demonstration
 const SAMPLE_DEVICE_ASSETS: Asset[] = [
   {
     id: 'asset-1',
@@ -41,121 +42,168 @@ const SAMPLE_DEVICE_ASSETS: Asset[] = [
   },
 ];
 
-type ActiveTab = 'triage' | 'library' | 'search' | 'trash';
+type ActiveTab = 'dashboard' | 'triage' | 'library' | 'search' | 'trash';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('triage');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [triageMode, setTriageMode] = useState<TriageMode>('quick');
   const [discardedCount, setDiscardedCount] = useState(0);
+  const [unclassifiedCount, setUnclassifiedCount] = useState(2);
+  const [totalSavedCount, setTotalSavedCount] = useState(48);
 
-  const handleKeep = (assetId: string, tags: string[], albums: string[]) => {
-    console.log(`[Pixie] Foto guardada: ${assetId} con tags:`, tags, 'en álbumes:', albums);
+  const handleOpenTriage = (mode: TriageMode) => {
+    setTriageMode(mode);
+    setActiveTab('triage');
+  };
+
+  const handleQuickKeep = (assetId: string) => {
+    setUnclassifiedCount((c) => c + 1);
+    setTotalSavedCount((c) => c + 1);
+  };
+
+  const handleDetailedKeep = (assetId: string, tags: string[], albums: string[]) => {
+    setTotalSavedCount((c) => c + 1);
   };
 
   const handleDiscard = (assetId: string) => {
-    console.log(`[Pixie] Foto descartada: ${assetId}`);
-    setDiscardedCount((prev) => prev + 1);
+    setDiscardedCount((c) => c + 1);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Main Screen Content */}
+      {/* Main View Shell */}
       <View style={styles.content}>
+        {activeTab === 'dashboard' && (
+          <DashboardScreen
+            newPhotosCount={SAMPLE_DEVICE_ASSETS.length}
+            unclassifiedCount={unclassifiedCount}
+            totalSavedCount={totalSavedCount}
+            onOpenTriage={handleOpenTriage}
+            onOpenLibrary={() => setActiveTab('library')}
+            onOpenSearch={() => setActiveTab('search')}
+          />
+        )}
+
         {activeTab === 'triage' && (
           <TriageScreen
             initialAssets={SAMPLE_DEVICE_ASSETS}
-            onKeep={handleKeep}
+            defaultMode={triageMode}
+            onQuickKeep={handleQuickKeep}
+            onDetailedKeep={handleDetailedKeep}
             onDiscard={handleDiscard}
+            onClose={() => setActiveTab('dashboard')}
           />
         )}
+
         {activeTab === 'library' && <LibraryScreen />}
         {activeTab === 'search' && <SearchScreen />}
+
         {activeTab === 'trash' && (
-          <View style={styles.trashView}>
-            <Text style={styles.trashEmoji}>🗑️</Text>
+          <View style={styles.trashContainer}>
+            <View style={styles.trashIconBox}>
+              <Feather name="trash-2" size={28} color={theme.colors.actionDiscard} />
+            </View>
             <Text style={styles.trashTitle}>Papelera de Reciclaje</Text>
             <Text style={styles.trashSubtitle}>
               {discardedCount === 0
-                ? 'No tienes fotos marcadas para eliminar.'
-                : `Tienes ${discardedCount} fotos listas para ser liberadas permanentemente de tu memoria.`}
+                ? 'No hay elementos en espera de eliminación.'
+                : `Tienes ${discardedCount} elementos marcados para descarte permanente.`}
             </Text>
+
             {discardedCount > 0 && (
               <TouchableOpacity
-                style={styles.deletePermanentBtn}
+                style={styles.emptyTrashBtn}
                 onPress={() => setDiscardedCount(0)}
               >
-                <Text style={styles.deletePermanentText}>
-                  Liberar Espacio Permanentemente
-                </Text>
+                <Text style={styles.emptyTrashText}>Vaciar Papelera</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
       </View>
 
-      {/* Bottom Accessible Navigation Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'triage' && styles.navItemActive]}
-          onPress={() => setActiveTab('triage')}
-        >
-          <Text style={styles.navIcon}>⚡</Text>
-          <Text
-            style={[
-              styles.navLabel,
-              activeTab === 'triage' && styles.navLabelActive,
-            ]}
+      {/* Minimalist Bottom Bar */}
+      {activeTab !== 'triage' && (
+        <View style={styles.bottomNav}>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'dashboard' && styles.navItemActive]}
+            onPress={() => setActiveTab('dashboard')}
           >
-            Triage
-          </Text>
-        </TouchableOpacity>
+            <Feather
+              name="home"
+              size={18}
+              color={activeTab === 'dashboard' ? '#FFFFFF' : theme.colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.navLabel,
+                activeTab === 'dashboard' && styles.navLabelActive,
+              ]}
+            >
+              Inicio
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'library' && styles.navItemActive]}
-          onPress={() => setActiveTab('library')}
-        >
-          <Text style={styles.navIcon}>📁</Text>
-          <Text
-            style={[
-              styles.navLabel,
-              activeTab === 'library' && styles.navLabelActive,
-            ]}
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'library' && styles.navItemActive]}
+            onPress={() => setActiveTab('library')}
           >
-            Rutas
-          </Text>
-        </TouchableOpacity>
+            <Feather
+              name="folder"
+              size={18}
+              color={activeTab === 'library' ? '#FFFFFF' : theme.colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.navLabel,
+                activeTab === 'library' && styles.navLabelActive,
+              ]}
+            >
+              Rutas
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'search' && styles.navItemActive]}
-          onPress={() => setActiveTab('search')}
-        >
-          <Text style={styles.navIcon}>🔍</Text>
-          <Text
-            style={[
-              styles.navLabel,
-              activeTab === 'search' && styles.navLabelActive,
-            ]}
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'search' && styles.navItemActive]}
+            onPress={() => setActiveTab('search')}
           >
-            Buscar IA
-          </Text>
-        </TouchableOpacity>
+            <Feather
+              name="search"
+              size={18}
+              color={activeTab === 'search' ? '#FFFFFF' : theme.colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.navLabel,
+                activeTab === 'search' && styles.navLabelActive,
+              ]}
+            >
+              Buscar
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'trash' && styles.navItemActive]}
-          onPress={() => setActiveTab('trash')}
-        >
-          <Text style={styles.navIcon}>🗑️</Text>
-          <Text
-            style={[
-              styles.navLabel,
-              activeTab === 'trash' && styles.navLabelActive,
-            ]}
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'trash' && styles.navItemActive]}
+            onPress={() => setActiveTab('trash')}
           >
-            Papelera ({discardedCount})
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Feather
+              name="trash-2"
+              size={18}
+              color={activeTab === 'trash' ? '#FFFFFF' : theme.colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.navLabel,
+                activeTab === 'trash' && styles.navLabelActive,
+              ]}
+            >
+              Papelera
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -168,68 +216,73 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  navBar: {
+  bottomNav: {
     flexDirection: 'row',
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: theme.colors.borderSubtle,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     justifyContent: 'space-around',
   },
   navItem: {
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: theme.borderRadius.sm,
   },
   navItemActive: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-  },
-  navIcon: {
-    fontSize: 20,
-    marginBottom: 2,
+    backgroundColor: theme.colors.surfaceElevated,
   },
   navLabel: {
     fontSize: 11,
     color: theme.colors.textMuted,
-    fontWeight: '600',
+    marginTop: 4,
+    fontWeight: '500',
   },
   navLabelActive: {
-    color: theme.colors.primaryLight,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
-  trashView: {
+  trashContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: theme.spacing.xl,
   },
-  trashEmoji: {
-    fontSize: 56,
+  trashIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.actionDiscardSubtle,
+    borderWidth: 1,
+    borderColor: theme.colors.actionDiscard,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
   trashTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...theme.typography.title,
     color: theme.colors.textPrimary,
   },
   trashSubtitle: {
-    fontSize: 14,
+    ...theme.typography.body,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
     lineHeight: 20,
+    maxWidth: 280,
   },
-  deletePermanentBtn: {
+  emptyTrashBtn: {
     marginTop: theme.spacing.xl,
-    backgroundColor: theme.colors.accentRed,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.actionDiscard,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: theme.borderRadius.sm,
   },
-  deletePermanentText: {
+  emptyTrashText: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+    fontWeight: '600',
+    fontSize: 13,
   },
 });
