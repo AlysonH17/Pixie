@@ -55,11 +55,11 @@ src/
 | **Infraestructura Base & No-Admin Runtime** | ✅ Completado | N/A | Node.js LTS portable en `.tools/nodejs` |
 | **Scaffold Expo SDK 58 + TypeScript** | ✅ Completado | N/A | Expo 58, React 19, React Native 0.88 |
 | **Esquema Relacional SQLite (Cero Duplicación)** | ✅ Completado | ✅ | `CREATE_TABLES_SQL` con tablas N:M e índices |
-| **Lógica de Triage & Filtro de Idempotencia** | ✅ Completado | ✅ 4 tests | `TriageManager.test.ts` pasando |
+| **Lógica de Triage & Filtro de Idempotencia** | ✅ Completado | ✅ 5 tests | `TriageManager.test.ts` con modos Quick y Detailed |
 | **Extractor EXIF y Geocoding de Metadatos** | ✅ Completado | ✅ 3 tests | `exifParser.test.ts` pasando |
 | **Servicio de Rutas Virtuales Multidimensionales** | ✅ Completado | ✅ 2 tests | `albumService.test.ts` pasando |
 | **Cliente Multimodal Gemini Flash & Búsqueda IA** | ✅ Completado | ✅ 2 tests | `geminiClient.test.ts` pasando |
-| **UI Triage (Swipe Cleaner + Tagging Modal)** | ✅ Completado | ✅ Manual | Pantalla de swipe, chips de 1 toque y resumen |
+| **UI Triage (Modo Rápido / Detallado + Dashboard con Alertas)** | ✅ Completado (Issue #2) | ✅ Manual & Types | UI minimalista, cero emojis, alertas no invasivas |
 | **UI Biblioteca de Rutas & Buscador IA** | ✅ Completado | ✅ Manual | Navegación entre Triage, Rutas, Buscar y Papelera |
 | **Pipeline Automatizado GitHub Actions (CI)** | ✅ Completado | ✅ CI | `.github/workflows/ci.yml` (Lint + Typecheck + Tests) |
 | **Conexión Real con Cámara/Carrete (`expo-media-library`)** | 🟡 En Espera de Checkpoint | — | Próximo paso técnico |

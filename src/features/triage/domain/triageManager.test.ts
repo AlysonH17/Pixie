@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TriageManager, ITriageRepository } from './triageManager';
 import { Asset } from '../../../core/database/types';
 
-describe('TriageManager (Core Business Logic)', () => {
+describe('TriageManager (Core Business Logic with Dual Triage Modes)', () => {
   let mockRepo: ITriageRepository;
   let triageManager: TriageManager;
 
@@ -10,12 +10,15 @@ describe('TriageManager (Core Business Logic)', () => {
     mockRepo = {
       getAssetById: vi.fn(),
       getPendingAssets: vi.fn(),
+      getUnclassifiedSavedAssets: vi.fn(),
       saveAssets: vi.fn(),
       updateAssetStatus: vi.fn(),
       assignTagsToAsset: vi.fn(),
       assignAssetToAlbums: vi.fn(),
       recordHistory: vi.fn(),
       deleteLatestHistoryEntry: vi.fn(),
+      countPendingNew: vi.fn(),
+      countUnclassifiedSaved: vi.fn(),
     };
     triageManager = new TriageManager(mockRepo);
   });
@@ -27,9 +30,7 @@ describe('TriageManager (Core Business Logic)', () => {
       { id: 'photo-3', uri: 'file://3.jpg', mediaType: 'image', fileSizeBytes: 3000, triageStatus: 'pending', createdAt: '2026-01-03' },
     ];
 
-    // Suppose photo-1 was already kept, and photo-2 was discarded
     const processedIds = new Set(['photo-1', 'photo-2']);
-
     const queue = triageManager.filterUnprocessedAssets(deviceAssets, processedIds);
 
     expect(queue).toHaveLength(1);
@@ -44,23 +45,31 @@ describe('TriageManager (Core Business Logic)', () => {
     expect(mockRepo.recordHistory).toHaveBeenCalledWith('photo-trash-1', 'DISCARD', '2026-11-13T10:00:00.000Z');
   });
 
-  it('should keep an asset and associate tags and virtual albums without duplicating file bytes', async () => {
+  it('should support Quick-Keep mode by saving without forcing immediate attributes', async () => {
+    const fixedDate = new Date('2026-11-13T10:00:00.000Z');
+    await triageManager.quickKeepAsset('photo-fast-1', fixedDate);
+
+    expect(mockRepo.updateAssetStatus).toHaveBeenCalledWith('photo-fast-1', 'kept_unclassified', '2026-11-13T10:00:00.000Z');
+    expect(mockRepo.recordHistory).toHaveBeenCalledWith('photo-fast-1', 'QUICK_KEEP', '2026-11-13T10:00:00.000Z');
+  });
+
+  it('should support Detailed-Keep mode by saving with tags and virtual routes', async () => {
     const fixedDate = new Date('2026-11-13T10:00:00.000Z');
 
-    await triageManager.keepAsset(
+    await triageManager.detailedKeepAsset(
       {
         assetId: 'photo-italy-mama',
         action: 'keep',
         tagIds: ['tag-mama', 'tag-comida'],
-        albumIds: ['album-italia-2024', 'album-favoritos-mama'],
+        albumIds: ['album-italia-2024'],
       },
       fixedDate
     );
 
-    expect(mockRepo.updateAssetStatus).toHaveBeenCalledWith('photo-italy-mama', 'kept', '2026-11-13T10:00:00.000Z');
+    expect(mockRepo.updateAssetStatus).toHaveBeenCalledWith('photo-italy-mama', 'kept_classified', '2026-11-13T10:00:00.000Z');
     expect(mockRepo.assignTagsToAsset).toHaveBeenCalledWith('photo-italy-mama', ['tag-mama', 'tag-comida']);
-    expect(mockRepo.assignAssetToAlbums).toHaveBeenCalledWith('photo-italy-mama', ['album-italia-2024', 'album-favoritos-mama']);
-    expect(mockRepo.recordHistory).toHaveBeenCalledWith('photo-italy-mama', 'KEEP', '2026-11-13T10:00:00.000Z');
+    expect(mockRepo.assignAssetToAlbums).toHaveBeenCalledWith('photo-italy-mama', ['album-italia-2024']);
+    expect(mockRepo.recordHistory).toHaveBeenCalledWith('photo-italy-mama', 'DETAILED_KEEP', '2026-11-13T10:00:00.000Z');
   });
 
   it('should allow undoing a decision to return the photo to pending state', async () => {

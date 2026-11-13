@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { Asset, AssetMetadata } from '../../../core/database/types';
 import { formatCaptureDate } from '../../metadata/exifParser';
@@ -16,11 +17,6 @@ interface TaggingModalProps {
   visible: boolean;
   asset: Asset | null;
   metadata?: AssetMetadata | null;
-  aiSuggestion?: {
-    category?: string;
-    tags?: string[];
-    album?: string;
-  } | null;
   onSave: (tagIds: string[], albumTitles: string[]) => void;
   onCancel: () => void;
 }
@@ -29,26 +25,11 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
   visible,
   asset,
   metadata,
-  aiSuggestion,
   onSave,
   onCancel,
 }) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedAlbums, setSelectedAlbums] = useState<string[]>([]);
-
-  // Pre-seed selections when AI gives strong suggestions
-  React.useEffect(() => {
-    if (aiSuggestion) {
-      const initialTags: string[] = [];
-      if (aiSuggestion.category) initialTags.push(aiSuggestion.category);
-      if (aiSuggestion.tags) initialTags.push(...aiSuggestion.tags);
-      setSelectedTags(initialTags);
-
-      if (aiSuggestion.album) {
-        setSelectedAlbums([aiSuggestion.album]);
-      }
-    }
-  }, [aiSuggestion]);
 
   if (!asset) return null;
 
@@ -66,47 +47,54 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
 
   const peopleOptions = ['Mamá', 'Amigos', 'Pareja', 'Yo'];
   const categoryOptions = ['Comida', 'Paisaje', 'Atardecer', 'Documento', 'Mascota'];
-  const albumOptions = ['Viaje a Italia 2024', 'Familia', 'Favoritos 2026'];
+  const albumOptions = ['Viaje a Italia 2024', 'Familia', 'Favoritos'];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="fade" transparent>
       <View style={styles.overlay}>
         <View style={styles.sheetContainer}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Clasificar Fotografía</Text>
-              <Text style={styles.subtitle}>
-                Guárdala en múltiples rutas sin ocupar doble espacio
-              </Text>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.title}>Atributos de Fotografía</Text>
+                <Text style={styles.subtitle}>
+                  Organización multidimensional sin duplicar almacenamiento
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.closeBtn} onPress={onCancel}>
+                <Feather name="x" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
             </View>
 
-            {/* Preview & EXIF defaults */}
+            {/* Preview & Metadatos EXIF */}
             <View style={styles.previewContainer}>
               <Image source={{ uri: asset.uri }} style={styles.thumbnail} />
               <View style={styles.exifBadge}>
-                <Text style={styles.exifLabel}>
-                  📅 {formatCaptureDate(metadata?.capturedAt)}
-                </Text>
-                {metadata?.locationCity ? (
+                <View style={styles.exifRow}>
+                  <Feather name="calendar" size={13} color={theme.colors.textMuted} />
                   <Text style={styles.exifLabel}>
-                    📍 {metadata.locationCity}, {metadata.locationCountry}
+                    {formatCaptureDate(metadata?.capturedAt)}
                   </Text>
-                ) : (
-                  <Text style={styles.exifLabel}>📍 Ubicación no disponible</Text>
-                )}
-                {aiSuggestion?.category && (
-                  <View style={styles.aiTag}>
-                    <Text style={styles.aiTagText}>
-                      ✨ IA sugiere: {aiSuggestion.category}
+                </View>
+                {metadata?.locationCity ? (
+                  <View style={styles.exifRow}>
+                    <Feather name="map-pin" size={13} color={theme.colors.textMuted} />
+                    <Text style={styles.exifLabel}>
+                      {metadata.locationCity}, {metadata.locationCountry}
                     </Text>
+                  </View>
+                ) : (
+                  <View style={styles.exifRow}>
+                    <Feather name="map-pin" size={13} color={theme.colors.textMuted} />
+                    <Text style={styles.exifLabel}>Ubicación no disponible</Text>
                   </View>
                 )}
               </View>
             </View>
 
             {/* People chips */}
-            <Text style={styles.sectionTitle}>Personas que aparecen:</Text>
+            <Text style={styles.sectionTitle}>Personas presentes</Text>
             <View style={styles.chipsRow}>
               {peopleOptions.map((person) => {
                 const isSelected = selectedTags.includes(person);
@@ -119,7 +107,6 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
                     <Text
                       style={[styles.chipText, isSelected && styles.chipTextSelected]}
                     >
-                      {isSelected ? '✓ ' : '+ '}
                       {person}
                     </Text>
                   </TouchableOpacity>
@@ -128,7 +115,7 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
             </View>
 
             {/* Categories */}
-            <Text style={styles.sectionTitle}>Categoría / Tema:</Text>
+            <Text style={styles.sectionTitle}>Categoría temática</Text>
             <View style={styles.chipsRow}>
               {categoryOptions.map((cat) => {
                 const isSelected = selectedTags.includes(cat);
@@ -141,7 +128,6 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
                     <Text
                       style={[styles.chipText, isSelected && styles.chipTextSelected]}
                     >
-                      {isSelected ? '✓ ' : '+ '}
                       {cat}
                     </Text>
                   </TouchableOpacity>
@@ -150,7 +136,7 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
             </View>
 
             {/* Virtual Albums */}
-            <Text style={styles.sectionTitle}>Álbumes Virtuales (Cero duplicación):</Text>
+            <Text style={styles.sectionTitle}>Álbumes asignados</Text>
             <View style={styles.chipsRow}>
               {albumOptions.map((album) => {
                 const isSelected = selectedAlbums.includes(album);
@@ -163,14 +149,14 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
                     <Text
                       style={[styles.chipText, isSelected && styles.chipTextSelected]}
                     >
-                      📁 {album}
+                      {album}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* Action buttons */}
+            {/* Bottom Actions */}
             <View style={styles.actionsRow}>
               <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
@@ -179,7 +165,7 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
                 style={styles.saveBtn}
                 onPress={() => onSave(selectedTags, selectedAlbums)}
               >
-                <Text style={styles.saveBtnText}>Guardar Foto</Text>
+                <Text style={styles.saveBtnText}>Guardar</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -192,7 +178,7 @@ export const TaggingModal: React.FC<TaggingModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
@@ -200,63 +186,65 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: theme.borderRadius.lg,
     borderTopRightRadius: theme.borderRadius.lg,
     maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   scrollContent: {
     padding: theme.spacing.lg,
   },
-  header: {
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: theme.spacing.md,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...theme.typography.title,
     color: theme.colors.textPrimary,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.textSecondary,
     marginTop: 2,
+  },
+  closeBtn: {
+    padding: 6,
+    borderRadius: theme.borderRadius.xs,
+    backgroundColor: theme.colors.surfaceElevated,
   },
   previewContainer: {
     flexDirection: 'row',
     backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.sm,
     padding: theme.spacing.sm,
     marginBottom: theme.spacing.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
   thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: '#334155',
+    width: 68,
+    height: 68,
+    borderRadius: theme.borderRadius.xs,
+    backgroundColor: '#1E2024',
   },
   exifBadge: {
     marginLeft: theme.spacing.md,
     flex: 1,
+    gap: 4,
+  },
+  exifRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   exifLabel: {
     fontSize: 12,
     color: theme.colors.textSecondary,
-    marginBottom: 4,
-  },
-  aiTag: {
-    marginTop: 4,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: theme.borderRadius.full,
-    alignSelf: 'flex-start',
-  },
-  aiTagText: {
-    fontSize: 11,
-    color: theme.colors.primaryLight,
-    fontWeight: '600',
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
+    ...theme.typography.labelSmall,
+    color: theme.colors.textMuted,
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xs,
   },
@@ -267,55 +255,58 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: theme.colors.surfaceElevated,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   chipSelected: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryLight,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   chipAlbumSelected: {
-    backgroundColor: '#059669', // Emerald for albums
-    borderColor: '#34D399',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   chipText: {
     color: theme.colors.textSecondary,
     fontSize: 13,
   },
   chipTextSelected: {
-    color: '#FFFFFF',
+    color: '#0B0C0E',
     fontWeight: '600',
   },
   actionsRow: {
     flexDirection: 'row',
     gap: 12,
     marginTop: theme.spacing.xl,
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    borderRadius: theme.borderRadius.sm,
     backgroundColor: theme.colors.surfaceElevated,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   cancelBtnText: {
     color: theme.colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: '500',
+    fontSize: 14,
   },
   saveBtn: {
     flex: 2,
-    paddingVertical: 14,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.primary,
+    paddingVertical: 12,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
   },
   saveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+    color: '#0B0C0E',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

@@ -8,6 +8,7 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 
 interface VirtualRouteItem {
@@ -15,26 +16,25 @@ interface VirtualRouteItem {
   title: string;
   type: 'album' | 'person' | 'category';
   count: number;
-  icon: string;
+  iconName: keyof typeof Feather.glyphMap;
 }
 
 export const LibraryScreen: React.FC = () => {
   const [selectedRoute, setSelectedRoute] = useState<string>('all');
 
   const routes: VirtualRouteItem[] = [
-    { id: 'alb-italia', title: 'Viaje a Italia 2024', type: 'album', count: 42, icon: '✈️' },
-    { id: 'tag-mama', title: 'Fotos con Mamá', type: 'person', count: 18, icon: '👩‍👧' },
-    { id: 'tag-comida', title: 'Comida & Restaurantes', type: 'category', count: 25, icon: '🍕' },
-    { id: 'tag-atardecer', title: 'Atardeceres', type: 'category', count: 14, icon: '🌅' },
+    { id: 'alb-italia', title: 'Viaje a Italia 2024', type: 'album', count: 42, iconName: 'folder' },
+    { id: 'tag-mama', title: 'Fotos con Mamá', type: 'person', count: 18, iconName: 'user' },
+    { id: 'tag-comida', title: 'Gastronomía', type: 'category', count: 25, iconName: 'compass' },
+    { id: 'tag-atardecer', title: 'Atardeceres', type: 'category', count: 14, iconName: 'sun' },
   ];
 
-  // Mock cross-referenced photos
   const mockCrossReferencedPhotos = [
     {
       id: 'photo-1',
       uri: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=500',
-      caption: 'Cena con Mamá en Roma',
-      routes: ['Viaje a Italia 2024', 'Fotos con Mamá', 'Comida & Restaurantes'],
+      caption: 'Terraza en Roma',
+      routes: ['Viaje a Italia 2024', 'Fotos con Mamá', 'Gastronomía'],
     },
     {
       id: 'photo-2',
@@ -47,13 +47,13 @@ export const LibraryScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Rutas y Álbumes Virtuales</Text>
+        <Text style={styles.title}>Rutas Virtuales</Text>
         <Text style={styles.subtitle}>
-          Misma foto en diferentes colecciones con cero duplicación de almacenamiento
+          Colecciones multidimensionales sin duplicación de archivos físicos
         </Text>
       </View>
 
-      {/* Virtual Route Filters */}
+      {/* Routes Horizontal Filter */}
       <View style={styles.filtersWrapper}>
         <FlatList
           horizontal
@@ -68,18 +68,27 @@ export const LibraryScreen: React.FC = () => {
                 style={[styles.routeCard, isSelected && styles.routeCardSelected]}
                 onPress={() => setSelectedRoute(item.id)}
               >
-                <Text style={styles.routeIcon}>{item.icon}</Text>
-                <Text style={styles.routeTitle}>{item.title}</Text>
-                <Text style={styles.routeCount}>{item.count} fotos</Text>
+                <Feather
+                  name={item.iconName}
+                  size={16}
+                  color={isSelected ? '#0B0C0E' : theme.colors.textSecondary}
+                  style={styles.routeIcon}
+                />
+                <Text style={[styles.routeTitle, isSelected && styles.routeTitleSelected]}>
+                  {item.title}
+                </Text>
+                <Text style={[styles.routeCount, isSelected && styles.routeCountSelected]}>
+                  {item.count} fotos
+                </Text>
               </TouchableOpacity>
             );
           }}
         />
       </View>
 
-      {/* Cross-referenced Gallery List */}
+      {/* Cross-referenced Gallery */}
       <View style={styles.gallerySection}>
-        <Text style={styles.sectionHeading}>Fotos Indexadas:</Text>
+        <Text style={styles.sectionHeading}>Fotos Indexadas</Text>
         <FlatList
           data={mockCrossReferencedPhotos}
           keyExtractor={(item) => item.id}
@@ -89,11 +98,11 @@ export const LibraryScreen: React.FC = () => {
               <Image source={{ uri: item.uri }} style={styles.photoThumb} />
               <View style={styles.photoMeta}>
                 <Text style={styles.photoCaption}>{item.caption}</Text>
-                <Text style={styles.routesLabel}>Aparece en estas rutas:</Text>
+                <Text style={styles.routesLabel}>Rutas asociadas:</Text>
                 <View style={styles.tagsContainer}>
                   {item.routes.map((r) => (
                     <View key={r} style={styles.routeBadge}>
-                      <Text style={styles.routeBadgeText}>📁 {r}</Text>
+                      <Text style={styles.routeBadgeText}>{r}</Text>
                     </View>
                   ))}
                 </View>
@@ -117,48 +126,51 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...theme.typography.headline,
     color: theme.colors.textPrimary,
   },
   subtitle: {
-    fontSize: 13,
+    ...theme.typography.body,
     color: theme.colors.textSecondary,
     marginTop: 4,
-    lineHeight: 18,
   },
   filtersWrapper: {
     marginTop: theme.spacing.sm,
   },
   routesList: {
     paddingHorizontal: theme.spacing.lg,
-    gap: 12,
+    gap: 10,
   },
   routeCard: {
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    minWidth: 140,
+    borderRadius: theme.borderRadius.sm,
+    minWidth: 130,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   routeCardSelected: {
-    borderColor: theme.colors.primary,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   routeIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   routeTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: theme.colors.textPrimary,
   },
+  routeTitleSelected: {
+    color: '#0B0C0E',
+  },
   routeCount: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
+    fontSize: 11,
+    color: theme.colors.textMuted,
     marginTop: 2,
+  },
+  routeCountSelected: {
+    color: '#686B74',
   },
   gallerySection: {
     flex: 1,
@@ -166,28 +178,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
   },
   sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
+    ...theme.typography.labelSmall,
+    color: theme.colors.textMuted,
     marginBottom: theme.spacing.sm,
   },
   galleryContent: {
-    gap: 16,
+    gap: 12,
     paddingBottom: theme.spacing.xl,
   },
   photoItem: {
     flexDirection: 'row',
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.sm,
     padding: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   photoThumb: {
-    width: 90,
-    height: 90,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: '#334155',
+    width: 80,
+    height: 80,
+    borderRadius: theme.borderRadius.xs,
+    backgroundColor: '#1E2024',
   },
   photoMeta: {
     flex: 1,
@@ -195,8 +206,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoCaption: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: theme.colors.textPrimary,
   },
   routesLabel: {
@@ -214,11 +225,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: theme.borderRadius.full,
+    borderRadius: theme.borderRadius.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
   routeBadgeText: {
     fontSize: 11,
-    color: theme.colors.primaryLight,
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
 });
